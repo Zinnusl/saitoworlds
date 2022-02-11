@@ -50,7 +50,7 @@ pub async fn start() -> Result<(), JsValue> {
         let context = context.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
 
-            let t = Tile::new("data/terrain/iceberg.png");
+            let mut t = Tile::new("data/terrain/iceberg.png");
             if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
                 t.clicked(event.offset_x() as f64, event.offset_y() as f64);
             }
@@ -75,7 +75,7 @@ trait Clickable {
     fn was_clicked(&self, _x: f64, _y: f64) -> bool {
         false
     }
-    fn clicked(&self, _x: f64, _y: f64) {
+    fn clicked(&mut self, _x: f64, _y: f64) {
     }
 }
 
@@ -87,9 +87,11 @@ pub struct Tile {
 
 impl Clickable for Tile {
     fn was_clicked(&self, _x: f64, _y: f64) -> bool {
-        false
+        true
     }
-    fn clicked(&self, _x: f64, _y: f64) {
+    fn clicked(&mut self, x: f64, y: f64) {
+        self.x = x;
+        self.y = y;
     }
 }
 
