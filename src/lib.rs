@@ -4,7 +4,6 @@
 #![allow(dead_code)]
 #[allow(unused_imports)]
 
-use std::cell::Cell;
 use std::rc::Rc;
 use web_sys::ImageData;
 use js_sys::Uint8Array;
@@ -48,9 +47,11 @@ pub async fn start() -> Result<(), JsValue> {
 
     let world = Rc::new(std::cell::RefCell::new(World::new()));
     let context = Rc::new(context);
+    let pressed = Rc::new(std::cell::Cell::new(false));
+
+    world.borrow().render(&context, Pos::new_origin());
     {
-        let context = context.clone();
-        let world = world.clone();
+        let pressed = pressed.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
 
             // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
@@ -59,13 +60,51 @@ pub async fn start() -> Result<(), JsValue> {
             // }
             // t.render(&context);
 
-            world.borrow_mut().move_camera_offset_mut(Offset::se());
+            pressed.set(true);
+
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+    {
+        let context = context.clone();
+        let world = world.clone();
+        let pressed = pressed.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+
+            // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
+            // if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
+            //     t.clicked(event.offset_x() as f64, event.offset_y() as f64);
+            // }
+            // t.render(&context);
+
+            if pressed.get() {
+                world.borrow_mut().move_camera_offset_mut(Offset::new(event.movement_x() as i64, event.movement_y() as i64));
+                world.borrow().render(&context, Pos::new_origin());
+            }
+
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+    {
+        let context = context.clone();
+        let world = world.clone();
+        let pressed = pressed.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+
+            // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
+            // if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
+            //     t.clicked(event.offset_x() as f64, event.offset_y() as f64);
+            // }
+            // t.render(&context);
+
+            world.borrow_mut().move_camera_offset_mut(Offset::new(event.movement_x() as i64, event.movement_y() as i64));
             world.borrow().render(&context, Pos::new_origin());
+            pressed.set(false);
 
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref())?;
-
-        // FIXME: LEAKS MEMORY
         closure.forget();
     }
 
@@ -83,7 +122,7 @@ trait Clickable {
     fn was_clicked(&self, _x: f64, _y: f64) -> bool {
         false
     }
-    fn clicked(&mut self, _x: f64, _y: f64) {
+    fn clicked_mut(&mut self, _x: f64, _y: f64) {
     }
 }
 
@@ -170,6 +209,24 @@ impl std::ops::Add<Pos> for Pos {
         }
     }
 }
+impl std::ops::Sub<Pos> for Pos {
+    type Output = Pos;
+    fn sub(self, rhs: Offset) -> Offset {
+        Offset {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y
+        }
+    }
+}
+impl std::ops::Neg for Pos {
+    type Output = Pos;
+    fn neg(self) -> Offset {
+        Offset {
+            x: -self.x,
+            y: -self.y
+        }
+    }
+}
 
 pub enum TileImg {
     ICEBERG,
@@ -235,7 +292,7 @@ impl Clickable for Tile {
     fn was_clicked(&self, _x: f64, _y: f64) -> bool {
         true
     }
-    fn clicked(&mut self, x: f64, y: f64) {
+    fn clicked_mut(&mut self, x: f64, y: f64) {
         self.pos = Pos::new(x as i64, y as i64);
     }
 }
