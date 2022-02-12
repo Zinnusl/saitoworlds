@@ -46,9 +46,11 @@ pub async fn start() -> Result<(), JsValue> {
 
     // context.put_image_data(&image_data_temp, 0.0, 0.0)?;
 
+    let world = Rc::new(std::cell::RefCell::new(World::new()));
     let context = Rc::new(context);
     {
         let context = context.clone();
+        let world = world.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
 
             // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
@@ -57,8 +59,8 @@ pub async fn start() -> Result<(), JsValue> {
             // }
             // t.render(&context);
 
-            let world = World::new();
-            world.render(&context);
+            world.borrow_mut().move_camera_offset_mut(Offset::se());
+            world.borrow().render(&context, Pos::new_origin());
 
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref())?;
@@ -73,7 +75,7 @@ pub async fn start() -> Result<(), JsValue> {
 use web_sys::CanvasRenderingContext2d;
 
 trait Renderable {
-    fn render(&self, _context: &Rc<CanvasRenderingContext2d>) {
+    fn render(&self, _context: &Rc<CanvasRenderingContext2d>, _offset: Offset) {
     }
 }
 
@@ -96,26 +98,22 @@ trait RelativePos {
 
 impl RelativePos for Pos {
     fn nw(&self) -> Pos {
-        let angle_rad = std::f64::consts::PI / 180.0 * 240.0;
-        *self + Pos::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() + 8.0) as i64)
+        *self + Offset::nw()
     }
     fn w(&self) -> Pos {
-        *self + Pos::new(-64, 0)
+        *self + Offset::w()
     }
     fn sw(&self) -> Pos {
-        let angle_rad = std::f64::consts::PI / 180.0 * 120.0;
-        *self + Pos::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() - 8.0) as i64)
+        *self + Offset::sw()
     }
     fn ne(&self) -> Pos {
-        let angle_rad = std::f64::consts::PI / 180.0 * 300.0;
-        *self + Pos::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() + 8.0) as i64)
+        *self + Offset::ne()
     }
     fn e(&self) -> Pos {
-        *self + Pos::new(64, 0)
+        *self + Offset::e()
     }
     fn se(&self) -> Pos {
-        let angle_rad = std::f64::consts::PI / 180.0 * 60.0;
-        *self + Pos::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() - 8.0) as i64)
+        *self + Offset::se()
     }
 }
 
@@ -124,8 +122,38 @@ pub struct Pos {
     x: i64,
     y: i64
 }
+type Offset = Pos;
 
 impl Pos {
+    fn nw() -> Offset {
+        let angle_rad = std::f64::consts::PI / 180.0 * 240.0;
+        Offset::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() + 8.0) as i64)
+    }
+    fn w() -> Offset {
+        Offset::new(-64, 0)
+    }
+    fn sw() -> Offset {
+        let angle_rad = std::f64::consts::PI / 180.0 * 120.0;
+        Offset::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() - 8.0) as i64)
+    }
+    fn ne() -> Offset {
+        let angle_rad = std::f64::consts::PI / 180.0 * 300.0;
+         Offset::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() + 8.0) as i64)
+    }
+    fn e() -> Offset {
+        Offset::new(64, 0)
+    }
+    fn se() -> Offset {
+        let angle_rad = std::f64::consts::PI / 180.0 * 60.0;
+        Offset::new((64.0 * angle_rad.cos()) as i64, (64.0 * angle_rad.sin() - 8.0) as i64)
+    }
+
+    pub fn new_origin() -> Pos {
+        Pos {
+            x: 0,
+            y: 0
+        }
+    }
     pub fn new(x: i64, y: i64) -> Pos {
         Pos {
             x: x,
@@ -135,7 +163,7 @@ impl Pos {
 }
 impl std::ops::Add<Pos> for Pos {
     type Output = Pos;
-    fn add(self, rhs: Pos) -> Pos {
+    fn add(self, rhs: Offset) -> Pos {
         Pos {
             x: self.x + rhs.x,
             y: self.y + rhs.y
@@ -170,29 +198,35 @@ struct World {
 impl World {
     pub fn new() -> World {
         World {
-            camera: Pos::new(0, 0),
+            camera: Pos::new_origin(),
             hexes: vec![
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50)),
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50).e()),
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50).w()),
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50).e().se()),
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50).e().ne()),
-                Tile::new_with_pos(TileImg::ICEBERG, Pos::new(50, 50).se()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).ne()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).se().se()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).ne().ne()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).sw()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).nw()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).sw().sw()),
-                Tile::new_with_pos(TileImg::VOLCANO, Pos::new(50, 50).nw().nw())
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin()),
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin().e()),
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin().w()),
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin().e().se()),
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin().e().ne()),
+                Tile::new_with_pos(TileImg::ICEBERG, Pos::new_origin().se()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().ne()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().se().se()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().ne().ne()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().sw()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().nw()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().sw().sw()),
+                Tile::new_with_pos(TileImg::VOLCANO, Pos::new_origin().nw().nw())
             ]
         }
     }
+    pub fn move_camera_to_mut(&mut self, pos: Pos) {
+        self.camera = pos;
+    }
+    pub fn move_camera_offset_mut(&mut self, pos: Offset) {
+        self.camera = self.camera + pos;
+    }
 }
 impl Renderable for World {
-    fn render(&self, context: &Rc<CanvasRenderingContext2d>) {
+    fn render(&self, context: &Rc<CanvasRenderingContext2d>, offset: Offset) {
         self.hexes.iter().for_each(|hex| {
-            hex.render(&context);
+            hex.render(&context, self.camera + offset);
         });
     }
 }
@@ -207,7 +241,7 @@ impl Clickable for Tile {
 }
 
 impl Renderable for Tile {
-    fn render(&self, context: &Rc<CanvasRenderingContext2d>) {
+    fn render(&self, context: &Rc<CanvasRenderingContext2d>, offset: Offset) {
         let raw_data = self.img.data();
         let binary = js_sys::Uint8Array::new(&raw_data.iter().map(|x| JsValue::from_f64(*x as f64)).collect::<js_sys::Array>());
 
@@ -227,7 +261,7 @@ impl Renderable for Tile {
         let bitmap = window.create_image_bitmap_with_image_data(&image_data_temp).unwrap();
 
         let c = context.clone();
-        let s = self.pos;
+        let s = self.pos + offset;
         let closure = Closure::wrap(Box::new(move |bitm: wasm_bindgen::JsValue| {
              let _ = c.draw_image_with_image_bitmap(&web_sys::ImageBitmap::from(bitm), s.x as f64, s.y as f64);
         }) as Box<dyn FnMut(_)>);
