@@ -25,16 +25,40 @@ pub async fn fetch_url_binary(url: String) -> Result<Uint8Array, JsValue> {
     Ok(Uint8Array::new(&image_data))
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn log_u32(a: u32);
+
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn log_many(a: &str, b: &str);
+}
+
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
+#[wasm_bindgen]
+pub async fn greet() -> Result<(), JsValue> {
+    console_log!("Ich bin in greet!");
+
+    Ok(())
+}
 
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
+
+    console_log!("Ich bin in start!");
 
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let canvas = document
         .create_element("canvas")?
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
-    document.body().unwrap().append_child(&canvas)?;
+    document.query_selector(".container").unwrap().unwrap().append_child(&canvas)?;
     canvas.set_width(640);
     canvas.set_height(480);
     canvas.style().set_property("border", "solid")?;
@@ -42,6 +66,8 @@ pub async fn start() -> Result<(), JsValue> {
         .get_context("2d")?
         .unwrap()
         .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+    console_log!("context: {:?}", context);
 
     // context.put_image_data(&image_data_temp, 0.0, 0.0)?;
 
