@@ -6,24 +6,7 @@
 
 use std::rc::Rc;
 use web_sys::ImageData;
-use js_sys::Uint8Array;
 use wasm_bindgen::{prelude::*, JsCast, Clamped};
-use wasm_bindgen_futures::JsFuture;
-
-#[wasm_bindgen]
-pub fn init_panic_hook() {
-    console_error_panic_hook::set_once();
-}
-
-#[wasm_bindgen]
-pub async fn fetch_url_binary(url: String) -> Result<Uint8Array, JsValue> {
-    let window = web_sys::window().unwrap(); // Browser window
-    let promise = JsFuture::from(window.fetch_with_str(&url)); // File fetch promise
-    let result = promise.await?; // Await fulfillment of fetch
-    let response: web_sys::Response = result.dyn_into().unwrap(); // Type casting
-    let image_data = JsFuture::from(response.array_buffer()?).await?; // Get text
-    Ok(Uint8Array::new(&image_data))
-}
 
 #[wasm_bindgen]
 extern "C" {
@@ -43,15 +26,11 @@ macro_rules! console_log {
 
 #[wasm_bindgen]
 pub async fn greet() -> Result<(), JsValue> {
-    console_log!("Ich bin in greet!");
-
     Ok(())
 }
 
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
-
-    console_log!("Ich bin in start!");
 
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -59,8 +38,11 @@ pub async fn start() -> Result<(), JsValue> {
         .create_element("canvas")?
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
     document.query_selector(".container").unwrap().unwrap().append_child(&canvas)?;
-    canvas.set_width(640);
-    canvas.set_height(480);
+    canvas.set_width(canvas.offset_width() as u32);
+    canvas.set_height(canvas.offset_height() as u32);
+
+    console_log!("Canvas Size: {} {}", canvas.offset_width(), canvas.offset_height());
+
     canvas.style().set_property("border", "solid")?;
     let context = canvas
         .get_context("2d")?
@@ -71,59 +53,56 @@ pub async fn start() -> Result<(), JsValue> {
 
     // context.put_image_data(&image_data_temp, 0.0, 0.0)?;
 
+    let mut game = Game::new();
     let world = Rc::new(std::cell::RefCell::new(World::new()));
     let context = Rc::new(context);
     let pressed = Rc::new(std::cell::Cell::new(false));
+    let moved_camera = Rc::new(std::cell::Cell::new(false));
 
     world.borrow().render(&context, Pos::new_origin());
     {
         let pressed = pressed.clone();
+        let moved_camera = moved_camera.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
 
-            // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
-            // if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
-            //     t.clicked(event.offset_x() as f64, event.offset_y() as f64);
-            // }
-            // t.render(&context);
-
             pressed.set(true);
+            moved_camera.set(false);
 
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
-        closure.forget();
+        // closure.forget();
+        game.add_handle(closure);
     }
     {
         let context = context.clone();
         let world = world.clone();
         let pressed = pressed.clone();
+        let moved_camera = moved_camera.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-
-            // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
-            // if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
-            //     t.clicked(event.offset_x() as f64, event.offset_y() as f64);
-            // }
-            // t.render(&context);
 
             if pressed.get() {
                 world.borrow_mut().move_camera_offset_mut(Offset::new(event.movement_x() as i64, event.movement_y() as i64));
                 world.borrow().render(&context, Pos::new_origin());
+                moved_camera.set(true);
             }
 
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
-        closure.forget();
+        // closure.forget();
+        game.add_handle(closure);
     }
     {
         let context = context.clone();
         let world = world.clone();
         let pressed = pressed.clone();
+        let moved_camera = moved_camera.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
 
-            // let mut t = Tile::new_with_pos("data/terrain/iceberg.png");
-            // if t.was_clicked(event.offset_x() as f64, event.offset_y() as f64) {
-            //     t.clicked(event.offset_x() as f64, event.offset_y() as f64);
-            // }
-            // t.render(&context);
+            if !moved_camera.get() {
+                if world.borrow().was_clicked(None, event.offset_x() as f64, event.offset_y() as f64) {
+                    world.borrow_mut().clicked_mut(None, event.offset_x() as f64, event.offset_y() as f64);
+                }
+            }
 
             world.borrow_mut().move_camera_offset_mut(Offset::new(event.movement_x() as i64, event.movement_y() as i64));
             world.borrow().render(&context, Pos::new_origin());
@@ -131,7 +110,8 @@ pub async fn start() -> Result<(), JsValue> {
 
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref())?;
-        closure.forget();
+        // closure.forget();
+        game.add_handle(closure);
     }
 
     Ok(())
@@ -139,26 +119,58 @@ pub async fn start() -> Result<(), JsValue> {
 
 use web_sys::CanvasRenderingContext2d;
 
-trait Renderable {
+pub trait Renderable {
     fn render(&self, _context: &Rc<CanvasRenderingContext2d>, _offset: Offset) {
     }
 }
 
-trait Clickable {
-    fn was_clicked(&self, _x: f64, _y: f64) -> bool {
+pub trait Clickable {
+    fn was_clicked(&self, _world: Option<&World>, _x: f64, _y: f64) -> bool {
         false
     }
-    fn clicked_mut(&mut self, _x: f64, _y: f64) {
+    fn clicked_mut(&mut self, _world: Option<&World>, _x: f64, _y: f64) {
     }
 }
 
-trait RelativePos {
+pub trait RelativePos {
     fn nw(&self) -> Pos;
     fn w(&self) -> Pos;
     fn sw(&self) -> Pos;
     fn ne(&self) -> Pos;
     fn e(&self) -> Pos;
     fn se(&self) -> Pos;
+}
+
+pub trait ShowInfo {
+    fn info() -> DisplayInfo;
+}
+
+struct Game {
+    world: World,
+    handles: Vec<Closure<dyn FnMut(web_sys::MouseEvent)>>
+}
+
+impl Game {
+    pub fn new() -> Game {
+        Game {
+            world: World::new(),
+            handles: Vec::<Closure<dyn FnMut(web_sys::MouseEvent)>>::new()
+        }
+    }
+    pub fn add_handle(&mut self, handle: Closure<dyn FnMut(web_sys::MouseEvent)>) {
+        self.handles.push(handle);
+}
+}
+
+pub struct DisplayInfo {
+    name: String,
+    attrs: Vec<String>
+}
+
+impl Renderable for DisplayInfo {
+    fn render(&self, context: &Rc<CanvasRenderingContext2d>, _offset: Offset) {
+        context.fill_text("Das ist ein test.", 500.0, 500.0).unwrap();
+    }
 }
 
 impl RelativePos for Pos {
@@ -182,7 +194,7 @@ impl RelativePos for Pos {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Pos {
     x: i64,
     y: i64
@@ -221,8 +233,8 @@ impl Pos {
     }
     pub fn new(x: i64, y: i64) -> Pos {
         Pos {
-            x: x,
-            y: y
+            x,
+            y
         }
     }
 }
@@ -254,6 +266,7 @@ impl std::ops::Neg for Pos {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum TileImg {
     ICEBERG,
     VOLCANO
@@ -268,15 +281,24 @@ impl TileImg {
     }
 }
 
+#[derive(Clone)]
 pub struct Tile {
     img: TileImg,
-    pos: Pos
+    pos: Pos,
+    active: bool
 }
 
-struct World {
+#[derive(Clone)]
+pub struct World {
     camera: Pos,
     hexes: Vec<Tile>
 }
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 impl World {
     pub fn new() -> World {
@@ -306,6 +328,7 @@ impl World {
         self.camera = self.camera + pos;
     }
 }
+
 impl Renderable for World {
     fn render(&self, context: &Rc<CanvasRenderingContext2d>, offset: Offset) {
         self.hexes.iter().for_each(|hex| {
@@ -314,12 +337,30 @@ impl Renderable for World {
     }
 }
 
-impl Clickable for Tile {
-    fn was_clicked(&self, _x: f64, _y: f64) -> bool {
+impl Clickable for World {
+    fn was_clicked(&self, _: Option<&World>, _x: f64, _y: f64) -> bool {
         true
     }
-    fn clicked_mut(&mut self, x: f64, y: f64) {
-        self.pos = Pos::new(x as i64, y as i64);
+
+    fn clicked_mut(&mut self, _: Option<&World>, x: f64, y: f64) {
+        let view_world = self.clone();
+        self.hexes.iter_mut().for_each(|hex| {
+            if hex.was_clicked(Some(&view_world), x, y) {
+                hex.clicked_mut(Some(&view_world), x, y);
+            }
+        });
+    }
+}
+
+impl Clickable for Tile {
+    fn was_clicked(&self, world: Option<&World>, x: f64, y: f64) -> bool {
+        let pos = self.pos + world.unwrap().camera;
+        console_log!("{:?} {} {}", pos, x, y);
+        (x as i64 + 32) > pos.x && (x as i64 + 32) < pos.x + 64 && (y as i64 + 32) > pos.y && (y as i64 + 32) < pos.y + 64
+    }
+    fn clicked_mut(&mut self, _world: Option<&World>, _x: f64, _y: f64) {
+        self.active = !self.active;
+        console_log!("clicked_mut {:?}", self.pos);
     }
 }
 
@@ -332,7 +373,10 @@ impl Renderable for Tile {
 
         // Convert the png encoded bytes to an rgba pixel buffer (given the PNG is actually in
         // 8byte RGBA format).
-        let image = image::load_from_memory_with_format(&altbuf, image::ImageFormat::Png).unwrap();
+        let mut image = image::load_from_memory_with_format(&altbuf, image::ImageFormat::Png).unwrap();
+        if self.active {
+            image = image.huerotate(180);
+        }
         let rgba_image = image.to_rgba8();
 
         let clamped_buf: Clamped<&[u8]> = Clamped(&rgba_image.as_raw());
@@ -355,14 +399,16 @@ impl Renderable for Tile {
 impl Tile {
     pub fn new_with_xy(img: TileImg, x: i64, y: i64) -> Tile {
         Tile {
-            img: img,
-            pos: Pos::new(x, y)
+            img,
+            pos: Pos::new(x, y),
+            active: false
         }
     }
     pub fn new_with_pos(img: TileImg, pos: Pos) -> Tile {
         Tile {
-            img: img,
-            pos: pos
+            img,
+            pos,
+            active: false
         }
     }
 }
