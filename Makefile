@@ -9,4 +9,8 @@ build:
 	rm -R www/dist
 	rm -R pkg
 
+copy_to_wsl:
+	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" --exclude "target" /mnt/d/Entwicklung/rust/saitoworlds/ .
+
 .PHONY: build
+.PHONY: copy_to_wsl

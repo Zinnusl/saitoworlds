@@ -10,9 +10,10 @@ class SaitoworldsGame extends GameTemplate {
         this.publickey = app.wallet.returnPublicKey();
 
         this.useHUD = 0;
-        this.useClock = 1;
+        this.useClock = 0;
 
         this.wasm = null;
+        this.testerinovariablealda = null;
 
         this.minPlayers = 1;
         this.maxPlayers = 9;
@@ -27,17 +28,30 @@ class SaitoworldsGame extends GameTemplate {
     // manually announce arcade banner support
     //
     respondTo(type) {
+        console.log("respondTo: " + type);
+
+        if (type == "arcade-carousel") {
+            const obj = {};
+            obj.background = "/chess/img/arcade/arcade-banner-background.png";
+            obj.title = "Saitoworlds";
+            return obj;
+        }
+
         if (super.respondTo(type) != null) {
             return super.respondTo(type);
         }
 
-        if (type == "arcade-carousel") {
-            let obj = {};
-            obj.background = "/chess/img/arcade/arcade-banner-background.png";
-            obj.title = "Chess";
-            return obj;
-        }
         return null;
+    }
+
+    testerino() {
+        let newtx = this.app.wallet.createUnsignedTransactionWithDefaultFee();  // if no recipient, send to ourselves!
+        newtx.msg.module  = "Email";
+        newtx.msg.title   = "Congratulations - testerino button clicked!";
+        newtx.msg.message = "Your computer attached this email to a transaction and broadcast it. Your message is now on the blockchain.";
+        newtx = this.app.wallet.signTransaction(newtx);
+        this.app.network.propagateTransaction(newtx);
+        alert("Transaction Sent!");
     }
 
     initializeHTML(app) {
@@ -48,15 +62,18 @@ class SaitoworldsGame extends GameTemplate {
         });
     }
 
-    async initializeGame(game_id) {
+    initializeGame(_game_id) {
 
         console.log('######################################################');
         console.log('######################################################');
-        console.log('######################         #######################');
-        console.log('######################  Saitoworlds###################');
-        console.log('######################         #######################');
+        console.log('######################               #################');
+        console.log('######################  Saitoworlds  #################');
+        console.log('######################               #################');
         console.log('######################################################');
         console.log('######################################################');
+
+        // Koennte sein, dass this nicht mehr das ist, was es sein sollte
+        window.saitoworlds_module = this;
 
         if (this.browser_active == 1) {
 
@@ -70,7 +87,7 @@ class SaitoworldsGame extends GameTemplate {
     }
 
     returnGameOptionsHTML() {
-        let html = `
+        const html = `
       <div style="padding:40px;width:100vw;height:100vh;overflow-y:scroll;display:grid;grid-template-columns: 200px auto">
         <div style="top:0;left:0;margin-right: 20px;">
           <label for="color">Pick Your Race:</label>

@@ -13,6 +13,11 @@ wasm-bindgen-futures = "*"
 image = "*"
 js-sys = "*"
 async-trait = "*"
+num-traits = "*"
+num-derive = "*"
+yew = "*"
+stylist = { version = "0.10.1", features = ["yew", "yew_use_style"] }
+gloo = "0.8"
 
 [dev-dependencies]
 wasm-bindgen-test = "*"
