@@ -8,4 +8,11 @@
 
 ## About
 
-A game similar to eressea built on the saito blockchain.
+A dapp similar to r/place's yearly canvas-based event.
+Built on the premise that every wallet can only contribute one pixel to the picture overall.
+
+# todo
+
+- [ ] Load old transactions rather than just new, confirmed ones
+- [ ] Improve build chain (make it compile easily for anyone)
+- [ ] Improved pixel aiming facilities

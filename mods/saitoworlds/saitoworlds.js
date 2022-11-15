@@ -12,9 +12,6 @@ class SaitoworldsGame extends GameTemplate {
         this.useHUD = 0;
         this.useClock = 0;
 
-        this.wasm = null;
-        this.testerinovariablealda = null;
-
         this.minPlayers = 1;
         this.maxPlayers = 9;
         this.type       = "4x";
@@ -44,14 +41,14 @@ class SaitoworldsGame extends GameTemplate {
         return null;
     }
 
-    testerino() {
+    testerino(str) {
         let newtx = this.app.wallet.createUnsignedTransactionWithDefaultFee();  // if no recipient, send to ourselves!
-        newtx.msg.module  = "Email";
-        newtx.msg.title   = "Congratulations - testerino button clicked!";
-        newtx.msg.message = "Your computer attached this email to a transaction and broadcast it. Your message is now on the blockchain.";
+        newtx.msg.module  = "Saitoworlds";
+        newtx.msg.title   = "SerialisedGameState";
+        newtx.msg.serde = str;
         newtx = this.app.wallet.signTransaction(newtx);
         this.app.network.propagateTransaction(newtx);
-        alert("Transaction Sent!");
+        return 22;
     }
 
     initializeHTML(app) {
@@ -84,6 +81,61 @@ class SaitoworldsGame extends GameTemplate {
             //}
 
         }
+    }
+
+    async onConfirmation(blk, tx, confnum, app) {
+        if (this.browser_active == 0) { return; }
+        url = new URL(window.location.href);
+        if (url.searchParams.get('module') != null) { return; }
+
+        if (this.wasm_onConfirmationCallback) {
+            this.wasm_onConfirmationCallback(tx.msg.serde);
+        }
+    }
+
+    onPeerHandshakeComplete(app, peer) {
+        console.log("js onPeerHandshakeComplete 1");
+        if (this.browser_active == 0) { return; }
+        url = new URL(window.location.href);
+        if (url.searchParams.get('module') != null) { return; }
+        console.log("js onPeerHandshakeComplete 2");
+
+        // txs are saito\transaction.js
+        // this.app.storage.loadTransactions("Saitoworlds", 500000, (txs) => {
+
+        //     // txs = txs.filter(tx => tx.msg.serde);
+        //     console.log("js loadTransactions txs: ", JSON.stringify(txs));
+        //     txs = txs.map(tx => {
+        //         return tx.msg.serde || "";
+        //     });
+
+        //     if (this.wasm_onLoadTransactionsCallback) {
+        //         console.log("js wasm_onLoadTransactionsCallback");
+        //         this.wasm_onLoadTransactionsCallback(txs);
+        //     }
+        // });
+
+        let sql = "";
+        let params = {};
+
+        if (type === "all") {
+            sql = "SELECT * FROM txs WHERE publickey = $publickey ORDER BY id DESC LIMIT $num";
+            params = { $publickey : publickey , $num : num};
+        } else {
+            sql = "SELECT * FROM txs WHERE publickey = $publickey AND type = $type ORDER BY id DESC LIMIT $num";
+            params = { $publickey : publickey , $type : type , $num : num};
+        }
+
+        let rows = await this.app.storage.queryDatabase(sql, params, "archive");
+        let txs = [];
+
+        if (rows != undefined) {
+            if (rows.length > 0) {
+                txs = rows.map(row => row.tx);
+            }
+        }
+        return txs;
+
     }
 
     returnGameOptionsHTML() {
