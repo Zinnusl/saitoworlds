@@ -16,17 +16,11 @@ use std::rc::Rc;
 mod console;
 mod task;
 mod saito;
+pub mod tests;
 
 extern crate console_error_panic_hook;
 
-// #[wasm_bindgen(module = "/mods/saitoworlds/saitoworlds.js")]
-// #[wasm_bindgen]
-// extern "C" {
-//     type SaitoworldsGame;
-
-//     #[wasm_bindgen(method, catch)]
-//     fn testerino(this: &SaitoworldsGame) -> Result<i32, JsValue>;
-// }
+const POINT_TO_PIXEL: (u32, u32) = (1, 4);
 
 #[wasm_bindgen]
 pub async fn greet() -> Result<(), JsValue> {
@@ -41,9 +35,8 @@ pub async fn start() -> Result<(), JsValue> {
     let saito_module = window
         .get("saitoworlds_module")
         .unwrap();
-    console::console_log!("saitomod: {:?}", saito_module);
 
-    let mut saito = Box::new(saito::SaitoFacade::new(saito_module));
+    let saito = Box::new(saito::SaitoFacade::new(saito_module));
     saito.register_callbacks();
 
     thread_local!(static MODEL: RwLock<Option<Model>> = Default::default());
@@ -76,7 +69,7 @@ async fn create_window(app: &App) {
     };
 
     app.new_window()             
-        .size(1024, 1024)
+        .size_pixels(POINT_TO_PIXEL.1*256, POINT_TO_PIXEL.1*256)
         .device_descriptor(device_desc)
         .title("Saitoworlds")
         .view(view)
@@ -90,14 +83,16 @@ async fn create_window(app: &App) {
 
 fn event(_app: &App, model: &mut Model, event: WindowEvent) {
     match event {
+        WindowEvent::MouseExited => {
+            model.last_pos = None;
+        }
         MouseMoved(pos) => {
-            let pos = Pos::new(pos);
+            let pos = Pixel::new(pos);
             if model.pressed {
                 console::console_log!("MouseMoved: {:?} {:?}", pos, model.saito.testerino(serde_yaml::to_string(&pos).unwrap().as_str()).unwrap());
             }
             model.last_pos = Some(pos);
         }
-
         MousePressed(button) => {
             if button == MouseButton::Left {
                 model.pressed = true;
@@ -109,35 +104,35 @@ fn event(_app: &App, model: &mut Model, event: WindowEvent) {
                 }
             }
         }
-
         MouseReleased(button) => {
             if button == MouseButton::Left {
                 model.pressed = false;
             }
         }
-
         _other => (),
     }
 }
 
 struct Model {
-    pixels: Rc<RwLock<Vec<Pos>>>,
+    pixels: Rc<RwLock<Vec<Pixel>>>,
     saito: Box<saito::SaitoFacade>,
     pressed: bool,
-    last_pos: Option<Pos>,
+    last_pos: Option<Pixel>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-struct Pos {
+pub struct Pixel {
     x: f32,
     y: f32,
+    color: (u8, u8, u8),
 }
 
-impl Pos {
+impl Pixel {
     fn new(pos: Vec2) -> Self {
         Self {
-            x: pos.to_array()[0],
-            y: pos.to_array()[1],
+            x: (pos.to_array()[0] / POINT_TO_PIXEL.1 as f32).round(),
+            y: (pos.to_array()[1] / POINT_TO_PIXEL.1 as f32).round(),
+            color: (0, 0, 0),
         }
     }
 }
@@ -154,11 +149,11 @@ fn model(mut saito: Box<saito::SaitoFacade>) -> Model {
     }));
     let pixels_clone = pixels.clone();
     saito.block_on_load_all_mut(Box::new(move |txs| {
-        console::console_log!("block_on_load_all_mut: {:?}", txs.len());
         let mut borrowed_pixels = pixels_clone.write().unwrap();
         txs.iter().for_each(|tx| {
-            let tup = serde_yaml::from_str(tx).unwrap();
-            borrowed_pixels.push(tup);
+            if let Ok(tup) = serde_yaml::from_str(tx) {
+                borrowed_pixels.push(tup);
+            }
         });
     }));
 
@@ -174,20 +169,34 @@ fn update(_app: &App, _m: &mut Model, _update: Update) {
 }
 
 fn view(app: &App, m: &Model, frame: Frame) {
-    // Begin drawing
     let draw = app.draw();
     draw.background().color(WHITE);
 
-    // A simple way to draw the wave with an ellipse at each position
-    m.pixels.read().unwrap().iter().for_each(|pos| {
-        let x = pos.x;
-        let y = pos.y;
-        draw.ellipse()
+    m.pixels.read().unwrap().iter().for_each(|pixel| {
+        // let x = pos.x + (POINT_TO_PIXEL.1 as f32)/2.0;
+        // let y = pos.y + (POINT_TO_PIXEL.1 as f32)/2.0;
+        let x = pixel.x.round() * POINT_TO_PIXEL.1 as f32;
+        let y = pixel.y.round() * POINT_TO_PIXEL.1 as f32;
+        draw.rect()
             .x_y(x, y)
-            .w_h(1.0, 1.0)
-            .rgba(0.0, 0.0, 0.0, 1.0)
-            .stroke(BLACK);
+            .w_h(POINT_TO_PIXEL.1 as f32, POINT_TO_PIXEL.1 as f32)
+            .rgba(pixel.color.0 as f32 / 255.0, pixel.color.1 as f32 / 255.0, pixel.color.2 as f32 / 255.0, 1.0)
+            .stroke(nannou::color::Rgb::new(pixel.color.0 as f32 / 255.0, pixel.color.1 as f32 / 255.0, pixel.color.2 as f32 / 255.0));
     });
+
+    match &m.last_pos {
+        Some(pos) => {
+            let x = pos.x.round() * POINT_TO_PIXEL.1 as f32;
+            let y = pos.y.round() * POINT_TO_PIXEL.1 as f32;
+            draw.rect()
+                .x_y(x, y)
+                .w_h(POINT_TO_PIXEL.1 as f32, POINT_TO_PIXEL.1 as f32)
+                .rgba(random::<f32>(), random::<f32>(), random::<f32>(), 1.0)
+                .stroke(nannou::color::Rgb::new(random::<f32>(), random::<f32>(), random::<f32>()));
+                // .stroke(random::<nannou::color::Rgb::new>());
+        }
+        None => {}
+    }
 
     // Write the result of our drawing to the window's frame.
     draw.to_frame(app, &frame).unwrap();

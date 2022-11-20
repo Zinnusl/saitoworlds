@@ -1,12 +1,12 @@
-const GameTemplate = require('../../lib/templates/gametemplate');
+const ModTemplate = require('../../lib/templates/gametemplate');
 
-class SaitoworldsGame extends GameTemplate {
+class SaitoworldsGame extends ModTemplate {
 
     constructor(app) {
         super(app);
 
         this.name = "Saitoworlds";
-        this.description = "Saitoworlds is a infinite player 4x game played on an infinite hex grid."
+        this.description = "Saitoworlds is an art experiment similar to r/place's yearly art event."
         this.publickey = app.wallet.returnPublicKey();
 
         this.useHUD = 0;
@@ -14,11 +14,61 @@ class SaitoworldsGame extends GameTemplate {
 
         this.minPlayers = 1;
         this.maxPlayers = 9;
-        this.type       = "4x";
-        this.description = "An implementation of Eressea for the Saito Blockchain";
-        this.categories  = "Fantasy 4x Game";
+        this.type       = "Art";
+        this.categories  = "Art";
+
+        const is_browser = typeof window != "undefined";
+        if (is_browser) {
+            window.saitoworlds_module = this;
+            this.browser_active = true;
+        }
+        else {
+            global.saitoworlds_module = this;
+            this.browser_active = false;
+        }
 
         return this;
+    }
+    
+    getTransactions(app) {
+        return new Promise((resolve, _reject) => {
+            resolve(app.blockchain.index.blocks.map(block => {
+                return block.transactions.map(tx => {
+                    return tx.msg.serde || "";
+                });
+            }).flat().filter(tx => tx != ""));
+
+
+                // const txs_filtered = txs.filter(tx => tx.msg.module === "Saitoworlds" && tx.msg.title === "SerialisedGameState");
+            // console.log("getTransactions in expressApp 1: " + JSON.stringify(app.blockchain.index.blocks));
+            // if (txs) {
+            //     txs = txs.map(tx => {
+            //         return tx.msg.serde || "";
+            //     });
+            //     console.log("getTransactions in expressApp 2: " + txs.length);
+            //     resolve(txs);
+            // }
+            // else {
+            //     resolve([]);
+            // }
+        });
+    }
+
+    webServer(app, expressapp, express) {
+        super.webServer(app, expressapp, express);
+
+        const self = app.modules.returnModule("Saitoworlds");
+
+        // TODO do this with the socketio connection?
+        expressapp.get('/saitoworlds/transactions/', async function (_req, res) {
+            res.setHeader('Content-type', 'text/json');
+            res.charset = 'UTF-8';
+            const txs = await self.getTransactions(app);
+            res.write(JSON.stringify(txs));
+            res.end();
+            return;
+        });
+
     }
 
     //
@@ -52,35 +102,11 @@ class SaitoworldsGame extends GameTemplate {
     }
 
     initializeHTML(app) {
-        super.initializeHTML(app);
+        // super.initializeHTML(app);
 
-        this.app.modules.respondTo("chat-manager").forEach(mod => {
-            mod.respondTo('chat-manager').render(this_chess.app, this_chess);
-        });
-    }
-
-    initializeGame(_game_id) {
-
-        console.log('######################################################');
-        console.log('######################################################');
-        console.log('######################               #################');
-        console.log('######################  Saitoworlds  #################');
-        console.log('######################               #################');
-        console.log('######################################################');
-        console.log('######################################################');
-
-        // Koennte sein, dass this nicht mehr das ist, was es sein sollte
-        window.saitoworlds_module = this;
-
-        if (this.browser_active == 1) {
-
-            // enable chat
-            //if (!this.app.browser.isMobileBrowser(navigator.userAgent)) {
-            //  const chat = this.app.modules.returnModule("Chat");
-            //  chat.addPopUpChat();
-            //}
-
-        }
+        // this.app.modules.respondTo("chat-manager").forEach(mod => {
+        //     mod.respondTo('chat-manager').render(this_chess.app, this_chess);
+        // });
     }
 
     async onConfirmation(blk, tx, confnum, app) {
@@ -92,69 +118,28 @@ class SaitoworldsGame extends GameTemplate {
             this.wasm_onConfirmationCallback(tx.msg.serde);
         }
     }
+    
+    httpGetAsync(theUrl, callback) {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                callback(xmlHttp.responseText);
+        }
+        xmlHttp.open("GET", theUrl, true); // true for asynchronous
+        xmlHttp.send(null);
+    }
 
     onPeerHandshakeComplete(app, peer) {
-        console.log("js onPeerHandshakeComplete 1");
-        if (this.browser_active == 0) { return; }
-        url = new URL(window.location.href);
-        if (url.searchParams.get('module') != null) { return; }
-        console.log("js onPeerHandshakeComplete 2");
+        if (!this.browser_active) { return; }
 
-        // txs are saito\transaction.js
-        // this.app.storage.loadTransactions("Saitoworlds", 500000, (txs) => {
-
-        //     // txs = txs.filter(tx => tx.msg.serde);
-        //     console.log("js loadTransactions txs: ", JSON.stringify(txs));
-        //     txs = txs.map(tx => {
-        //         return tx.msg.serde || "";
-        //     });
-
-        //     if (this.wasm_onLoadTransactionsCallback) {
-        //         console.log("js wasm_onLoadTransactionsCallback");
-        //         this.wasm_onLoadTransactionsCallback(txs);
-        //     }
-        // });
-
-        let sql = "";
-        let params = {};
-
-        if (type === "all") {
-            sql = "SELECT * FROM txs WHERE publickey = $publickey ORDER BY id DESC LIMIT $num";
-            params = { $publickey : publickey , $num : num};
-        } else {
-            sql = "SELECT * FROM txs WHERE publickey = $publickey AND type = $type ORDER BY id DESC LIMIT $num";
-            params = { $publickey : publickey , $type : type , $num : num};
-        }
-
-        let rows = await this.app.storage.queryDatabase(sql, params, "archive");
-        let txs = [];
-
-        if (rows != undefined) {
-            if (rows.length > 0) {
-                txs = rows.map(row => row.tx);
+        this.httpGetAsync("http://localhost:12101/saitoworlds/transactions", (response) => {
+            const txs = JSON.parse(response);
+            if (this.wasm_onLoadTransactionsCallback) {
+                this.wasm_onLoadTransactionsCallback(txs);
             }
-        }
-        return txs;
-
+        });
     }
 
-    returnGameOptionsHTML() {
-        const html = `
-      <div style="padding:40px;width:100vw;height:100vh;overflow-y:scroll;display:grid;grid-template-columns: 200px auto">
-        <div style="top:0;left:0;margin-right: 20px;">
-          <label for="color">Pick Your Race:</label>
-          <select name="color">
-            <option value="black" default>Black</option>
-            <option value="white">White</option>
-          </select>
-        </div>
-        <div>
-          <div id="game-wizard-advanced-return-btn" class="game-wizard-advanced-return-btn button">accept</div>
-        </div>
-      </div>
-    `;
-        return html;
-    }
 }
 
 module.exports = SaitoworldsGame;

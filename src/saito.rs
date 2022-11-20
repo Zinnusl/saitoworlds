@@ -2,7 +2,7 @@
 use wasm_bindgen::JsCast;
 use std::rc::Rc;
 use std::sync::RwLock;
-use crate::console;
+// use crate::console;
 
 pub struct SaitoFacade
 {
@@ -52,8 +52,9 @@ impl SaitoFacade
             let weak = Rc::downgrade(&self.on_load);
             let closure = Closure::wrap(Box::new(move |txs: JsValue| {
                 let txs = txs.dyn_into::<js_sys::Array>().unwrap().iter().map(|tx| {
-                    tx.as_string().unwrap()
-                }).collect::<Vec<String>>();
+                    tx.as_string()
+                }).collect::<Vec<Option<String>>>();
+                let txs = txs.into_iter().filter_map(|tx| tx).collect::<Vec<String>>();
                 for f in weak.upgrade().unwrap().read().unwrap().iter() {
                     f(&txs);
                 }
@@ -81,16 +82,6 @@ impl SaitoFacade
         Ok(retval.as_f64().unwrap() as i32)
     }
 
-    // pub fn loadTransactions(&self, how_many: i32) -> Result<(), Err>
-    // {
-    //     let saitomod = &self.saitomod;
-    //     let app = get_js_property(&saitomod, "app")?.dyn_into::<js_sys::Object>()?;
-    //     let storage = get_js_property(&app, "storage")?.dyn_into::<js_sys::Object>()?;
-    //     let func = get_js_property(&storage, "LoadTransactions")?.dyn_into::<js_sys::Function>()?;
-    //     let retval = func.call2(&saitomod, &JsValue::from(how_many), callback)?;
-    //     Ok(())
-    // }
-    
     pub fn block_on_confirmation_mut(&mut self, func: Box<dyn Fn(&String)>)
     {
         self.on_update.write().unwrap().push(func);
@@ -98,26 +89,5 @@ impl SaitoFacade
     pub fn block_on_load_all_mut(&mut self, func: Box<dyn Fn(&Vec<String>)>)
     {
         self.on_load.write().unwrap().push(func);
-        console::console_log!("block_on_load_all_mut");
     }
 }
-
-    // let app = js_sys::Reflect::get(&saitomod, &JsValue::from("app"))?;
-    // let wallet = js_sys::Reflect::get(&app, &JsValue::from("wallet"))?;
-    // let network = js_sys::Reflect::get(&app, &JsValue::from("network"))?;
-    // let newtx_func = js_sys::Reflect::get(&wallet, &JsValue::from("createUnsignedTransactionWithDefaultFee"))?.dyn_into::<js_sys::Function>()?;
-    // let newtx = newtx_func.call0(&wallet)?;
-
-    // newtx.msg.module  = "Email";
-    // newtx.msg.title   = "Congratulations - testerino button clicked!";
-    // newtx.msg.message = "Your computer attached this email to a transaction and broadcast it. Your message is now on the blockchain.";
-    // newtx = this.app.wallet.signTransaction(newtx);
-    // this.app.network.propagateTransaction(newtx);
-
-    // console::console_log!("newtx: {:?}", newtx);
-    // js_sys::Object::entries(&wallet.into()).iter().for_each(|entry| {
-    //     console::console_log!("entry: {:?}", entry);
-    // });
-    // js_sys::Object::entries(&network.into()).iter().for_each(|entry| {
-    //     console::console_log!("entry: {:?}", entry);
-    // });
