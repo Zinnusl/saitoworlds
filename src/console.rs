@@ -21,4 +21,3 @@ macro_rules! console_log {
 }
 
 pub(crate) use console_log;
-

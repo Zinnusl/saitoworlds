@@ -32,10 +32,14 @@ web-sys = { version = "0.3.50", features = [
     "Blob",
     "Document",
     "Element",
+    "Event",
+    "EventTarget",
+    "HtmlElement",
     "Location",
     "Response",
     "UrlSearchParams",
     "Window",
+    "DomStringMap",
 ] }
 
 [dev-dependencies]

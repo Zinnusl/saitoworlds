@@ -32,25 +32,13 @@ class SaitoworldsGame extends ModTemplate {
     
     getTransactions(app) {
         return new Promise((resolve, _reject) => {
-            resolve(app.blockchain.index.blocks.map(block => {
+            const txs = app.blockchain.index.blocks.map(block => {
                 return block.transactions.map(tx => {
                     return tx.msg.serde || "";
                 });
-            }).flat().filter(tx => tx != ""));
-
-
-                // const txs_filtered = txs.filter(tx => tx.msg.module === "Saitoworlds" && tx.msg.title === "SerialisedGameState");
-            // console.log("getTransactions in expressApp 1: " + JSON.stringify(app.blockchain.index.blocks));
-            // if (txs) {
-            //     txs = txs.map(tx => {
-            //         return tx.msg.serde || "";
-            //     });
-            //     console.log("getTransactions in expressApp 2: " + txs.length);
-            //     resolve(txs);
-            // }
-            // else {
-            //     resolve([]);
-            // }
+            }).flat().filter(tx => tx != "")
+            const txs_set = new Set(txs);
+            resolve(Array.from(txs_set));
         });
     }
 
