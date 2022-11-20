@@ -13,6 +13,6 @@ Built on the premise that every wallet can only contribute one pixel to the pict
 
 # todo
 
-- [ ] Load old transactions rather than just new, confirmed ones
+- [x] Load old transactions rather than just new, confirmed ones
 - [ ] Improve build chain (make it compile easily for anyone)
 - [ ] Improved pixel aiming facilities
