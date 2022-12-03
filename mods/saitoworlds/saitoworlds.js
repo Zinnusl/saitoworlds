@@ -12,15 +12,17 @@ class SaitoworldsGame extends ModTemplate {
         this.useHUD = 0;
         this.useClock = 0;
 
-        this.minPlayers = 1;
-        this.maxPlayers = 9;
         this.type       = "Art";
         this.categories  = "Art";
 
+        this.app = app;
+
         const is_browser = typeof window != "undefined";
         if (is_browser) {
+            console.log("Saitoworlds: is_browser");
             window.saitoworlds_module = this;
             this.browser_active = true;
+            dispatchEvent(new Event('saitoworlds_ready'));
         }
         else {
             global.saitoworlds_module = this;
@@ -32,13 +34,15 @@ class SaitoworldsGame extends ModTemplate {
     
     getTransactions(app) {
         return new Promise((resolve, _reject) => {
-            const txs = app.blockchain.index.blocks.map(block => {
-                return block.transactions.map(tx => {
-                    return tx.msg.serde || "";
-                });
-            }).flat().filter(tx => tx != "")
-            const txs_set = new Set(txs);
-            resolve(Array.from(txs_set));
+            const txs = new Set();
+            for (const block of app.blockchain.blocks.values()) {
+                for (const tx of block.transactions) {
+                    if(tx.msg.serde) {
+                        txs.push(tx.msg.serde);
+                    }
+                }
+            }
+            resolve([...txs]);
         });
     }
 
@@ -51,7 +55,7 @@ class SaitoworldsGame extends ModTemplate {
         expressapp.get('/saitoworlds/transactions/', async function (_req, res) {
             res.setHeader('Content-type', 'text/json');
             res.charset = 'UTF-8';
-            const txs = await self.getTransactions(app);
+            const txs = await self.getTransactions(self.app);
             res.write(JSON.stringify(txs));
             res.end();
             return;
@@ -90,7 +94,7 @@ class SaitoworldsGame extends ModTemplate {
     }
 
     initializeHTML(app) {
-        // super.initializeHTML(app);
+        super.initializeHTML(app);
 
         // this.app.modules.respondTo("chat-manager").forEach(mod => {
         //     mod.respondTo('chat-manager').render(this_chess.app, this_chess);
@@ -128,6 +132,9 @@ class SaitoworldsGame extends ModTemplate {
         });
     }
 
+    shouldAffixCallbackToModule() {
+        return 1;
+    }
 }
 
 module.exports = SaitoworldsGame;

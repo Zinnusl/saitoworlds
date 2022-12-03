@@ -11,6 +11,7 @@ use nannou::{
 use std::rc::Rc;
 use std::sync::RwLock;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 mod console;
 mod html;
@@ -33,37 +34,43 @@ pub async fn start() -> Result<(), JsValue> {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
     let window = web_sys::window().unwrap();
-    let saito_module = window.get("saitoworlds_module").unwrap();
-    let palette = window
-        .document()
-        .unwrap()
-        .get_element_by_id("color-palette")
-        .unwrap();
+    let closure = Closure::wrap(Box::new(move || {
+        let window = web_sys::window().unwrap();
+        let saito_module = window.get("saitoworlds_module").unwrap();
+        let palette = window
+            .document()
+            .unwrap()
+            .get_element_by_id("color-palette")
+            .unwrap();
 
-    let saito = Box::new(saito::SaitoFacade::new(saito_module));
-    saito.register_callbacks();
+        let saito = Box::new(saito::SaitoFacade::new(saito_module));
+        saito.register_callbacks();
 
-    let html = Box::new(html::HtmlFacade::new(palette));
-    html.register_callbacks();
+        let html = Box::new(html::HtmlFacade::new(palette));
+        html.register_callbacks();
 
-    thread_local!(static MODEL: RwLock<Option<Model>> = Default::default());
-    let model = model(saito, html);
+        thread_local!(static MODEL: RwLock<Option<Model>> = Default::default());
+        let model = model(saito, html);
 
-    MODEL.with(|m| m.write().unwrap().replace(model));
+        MODEL.with(|m| m.write().unwrap().replace(model));
 
-    task::block_on(async {
-        app::Builder::new_async(|app| {
-            Box::new(async {
-                create_window(app).await;
-                MODEL.with(|m| m.write().unwrap().take().unwrap())
+        task::block_on(async {
+            app::Builder::new_async(|app| {
+                Box::new(async {
+                    create_window(app).await;
+                    MODEL.with(|m| m.write().unwrap().take().unwrap())
+                })
             })
-        })
-        .backends(Backends::PRIMARY | Backends::GL)
-        .update(update)
-        .run_async()
-        .await;
-    });
+            .backends(Backends::PRIMARY | Backends::GL)
+                .update(update)
+                .run_async()
+                .await;
+            });
+    }) as Box<dyn FnMut()>);
+    let closure_ref = closure.as_ref().unchecked_ref();
 
+    window.add_event_listener_with_callback("saitoworlds_ready", closure_ref);
+    closure.forget();
     Ok(())
 }
 
