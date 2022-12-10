@@ -1,4 +1,4 @@
-const ModTemplate = require('../../lib/templates/gametemplate');
+const ModTemplate = require('../../lib/templates/modtemplate');
 
 class SaitoworldsGame extends ModTemplate {
 
@@ -16,6 +16,13 @@ class SaitoworldsGame extends ModTemplate {
         this.categories  = "Art";
 
         this.app = app;
+
+        app.connection.on('saitoworlds_tx', (tx) => {
+            console.log("saitoworlds_tx in browser");
+            if (this.wasm_onTransactionCallback) {
+                this.wasm_onTransactionCallback(tx);
+            }
+        });
 
         const is_browser = typeof window != "undefined";
         if (is_browser) {
@@ -38,11 +45,11 @@ class SaitoworldsGame extends ModTemplate {
             for (const block of app.blockchain.blocks.values()) {
                 for (const tx of block.transactions) {
                     if(tx.msg.serde) {
-                        txs.push(tx.msg.serde);
+                        txs.add(tx.msg.serde);
                     }
                 }
             }
-            resolve([...txs]);
+            resolve([...txs.values()]);
         });
     }
 
@@ -101,18 +108,18 @@ class SaitoworldsGame extends ModTemplate {
         // });
     }
 
-    async onConfirmation(blk, tx, confnum, app) {
-        if (this.browser_active == 0) { return; }
-        url = new URL(window.location.href);
-        if (url.searchParams.get('module') != null) { return; }
+    async onConfirmation(_blk, tx, confnum, app) {
 
-        if (this.wasm_onConfirmationCallback) {
-            this.wasm_onConfirmationCallback(tx.msg.serde);
-        }
+        // app.connection.emit('saitoworlds_tx', tx);
+
+        console.log("Saitoworlds: onConfirmation");
+        // if (this.wasm_onConfirmationCallback) {
+        //     this.wasm_onConfirmationCallback(tx.msg.serde);
+        // }
     }
     
     httpGetAsync(theUrl, callback) {
-        var xmlHttp = new XMLHttpRequest();
+        const xmlHttp = new XMLHttpRequest();
         xmlHttp.onreadystatechange = function() {
             if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
                 callback(xmlHttp.responseText);

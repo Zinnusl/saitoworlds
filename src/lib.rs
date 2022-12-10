@@ -33,6 +33,8 @@ pub async fn greet() -> Result<(), JsValue> {
 pub async fn start() -> Result<(), JsValue> {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
+    console::console_log!("Hello from Rust!");
+
     let window = web_sys::window().unwrap();
     let closure = Closure::wrap(Box::new(move || {
         let window = web_sys::window().unwrap();
