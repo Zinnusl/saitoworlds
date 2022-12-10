@@ -6,7 +6,6 @@ build:
 	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" mods/saitoworlds ../saito-lite-rust/mods/
 	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" www ../saito-lite-rust/mods/saitoworlds
 	mv ../saito-lite-rust/mods/saitoworlds/www ../saito-lite-rust/mods/saitoworlds/web
-	rm -R www/dist
 
 copy_to_wsl:
 	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" --exclude "target" /mnt/d/Entwicklung/rust/saitoworlds/ .
