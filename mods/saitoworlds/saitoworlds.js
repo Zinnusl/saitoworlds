@@ -7,13 +7,13 @@ class SaitoworldsGame extends ModTemplate {
 
         this.name = "Saitoworlds";
         this.description = "Saitoworlds is an art experiment similar to r/place's yearly art event."
-        this.publickey = app.wallet.returnPublicKey();
+        this.publickey = app.wallet.publicKey;
 
         this.useHUD = 0;
         this.useClock = 0;
 
-        this.type       = "Art";
-        this.categories  = "Art";
+        this.type = "Art";
+        this.categories = "Art";
 
         this.app = app;
 
@@ -38,13 +38,13 @@ class SaitoworldsGame extends ModTemplate {
 
         return this;
     }
-    
+
     getTransactions(app) {
         return new Promise((resolve, _reject) => {
             const txs = new Set();
             for (const block of app.blockchain.blocks.values()) {
                 for (const tx of block.transactions) {
-                    if(tx.msg.serde) {
+                    if (tx.msg.serde) {
                         txs.add(tx.msg.serde);
                     }
                 }
@@ -92,8 +92,8 @@ class SaitoworldsGame extends ModTemplate {
 
     testerino(str) {
         let newtx = this.app.wallet.createUnsignedTransactionWithDefaultFee();  // if no recipient, send to ourselves!
-        newtx.msg.module  = "Saitoworlds";
-        newtx.msg.title   = "SerialisedGameState";
+        newtx.msg.module = "Saitoworlds";
+        newtx.msg.title = "SerialisedGameState";
         newtx.msg.serde = str;
         newtx = this.app.wallet.signTransaction(newtx);
         this.app.network.propagateTransaction(newtx);
@@ -117,10 +117,10 @@ class SaitoworldsGame extends ModTemplate {
         //     this.wasm_onConfirmationCallback(tx.msg.serde);
         // }
     }
-    
+
     httpGetAsync(theUrl, callback) {
         const xmlHttp = new XMLHttpRequest();
-        xmlHttp.onreadystatechange = function() {
+        xmlHttp.onreadystatechange = function () {
             if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
                 callback(xmlHttp.responseText);
         }
