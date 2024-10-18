@@ -1,8 +1,20 @@
-<html><head>
+﻿<html>
+    <head>
         <meta charset="utf-8">
-        <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" name="viewport">
+        <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" name="viewport" />
 
-        <script type="module">import init from './saitoworlds-267fe7ea4496c40d.js';init('./saitoworlds-267fe7ea4496c40d_bg.wasm');</script>
+        
+<script type="module" nonce="+w0sz2f7uIbxWhLGG+8+sw==">
+import init, * as bindings from './saitoworlds-7dc5e90b9c66a.js';
+const wasm = await init('./saitoworlds-7dc5e90b9c66a_bg.wasm');
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
 
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="description" content="">
@@ -10,28 +22,29 @@
 
         <script type="text/javascript" src="/saito/lib/jquery/jquery-3.2.1.min.js"></script>
         <script type="text/javascript" src="/saito/lib/jquery/jquery-ui.min.js"></script>
-        <link rel="stylesheet" href="/saito/lib/jquery/jquery-ui.min.css" type="text/css" media="screen">
+        <link rel="stylesheet" href="/saito/lib/jquery/jquery-ui.min.css" type="text/css" media="screen" />
 
-        <link rel="stylesheet" type="text/css" href="/saito/saito.css">
-        <link rel="stylesheet" type="text/css" href="/saito/game.css">
-        <link rel="stylesheet" href="/saitoworlds/saitoworlds.css" type="text/css">
+        <link rel="stylesheet" type="text/css" href="/saito/saito.css" />
+        <link rel="stylesheet" type="text/css" href="/saito/game.css" />
+        <link rel="stylesheet" href="/saitoworlds/saitoworlds.css" type="text/css" />
 
         <link rel="stylesheet" type="text/css" href="/chat/css/email-chat.css">
 
-        <link rel="stylesheet" href="/saito/lib/font-awesome-5/css/fontawesome.min.css" type="text/css" media="screen">
-        <link rel="stylesheet" href="/saito/lib/font-awesome-5/css/all.min.css" type="text/css" media="screen">
+        <link rel="stylesheet" href="/saito/lib/font-awesome-5/css/fontawesome.min.css" type="text/css" media="screen" />
+        <link rel="stylesheet" href="/saito/lib/font-awesome-5/css/all.min.css" type="text/css" media="screen" />
 
-        <link rel="icon" media="all" type="image/x-icon" href="/favicon.ico?v=2">
+        <link rel="icon" media="all" type="image/x-icon" href="/favicon.ico?v=2" />
 
         <title>Saito Worlds</title>
     
-<link rel="preload" href="./saitoworlds-267fe7ea4496c40d_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="./saitoworlds-267fe7ea4496c40d.js"></head>
+<link rel="modulepreload" href="./saitoworlds-7dc5e90b9c66a.js" crossorigin=anonymous integrity="sha384-C+C3gnGgBXycr5nPRhiYExiwtX618vTasExAcOqPnKhAI4tEMdvmO5w2c/tWddYm">
+<link rel="modulepreload" href="./snippets/saitoworlds-0f3ff31f9b0a711b/mods/saitoworlds/saitoworlds.js" crossorigin=anonymous integrity="sha384-ir88Pu4EKQ+8YWRufae1bzI29lkdz+kOP0XD52m31fJjmj7RzEiX2L0SWUqcfcJQ">
+<link rel="preload" href="./saitoworlds-7dc5e90b9c66a_bg.wasm" crossorigin=anonymous integrity="sha384-PQ40OaGxptOjQMXGTN2ZT3DjW4gQ/hMMaD/5D0EHNXSQkoyHDQHuyLW4FT+Cga4N" as="fetch" type="application/wasm"></head>
 
     <body>
         <div class="header">
             <a href="">
-                <img class="logo" src="/saito/img/logo.svg"> Worlds
+                <img class="logo" src="/saito/img/logo.svg" > Worlds
             </a>
         </div>
         <script id="saito" type="text/javascript" src="/saito/saito.js"></script>
@@ -45,6 +58,5 @@
             <div class="color" id="color-7" data-color="ff00ff"></div>
             <div class="color" id="color-8" data-color="ffff00"></div>
         </div>
-    
-
-</body></html>
+    </body>
+</html>
