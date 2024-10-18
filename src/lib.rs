@@ -1,6 +1,6 @@
 #![cfg_attr(not(doc), no_main)]
-#![feature(stmt_expr_attributes)]
-#![feature(try_trait_v2)]
+// #![feature(stmt_expr_attributes)]
+// #![feature(try_trait_v2)]
 #![allow(dead_code)]
 #[allow(unused_imports)]
 use nannou::prelude::*;
@@ -64,10 +64,10 @@ pub async fn start() -> Result<(), JsValue> {
                 })
             })
             .backends(Backends::PRIMARY | Backends::GL)
-                .update(update)
-                .run_async()
-                .await;
-            });
+            .update(update)
+            .run_async()
+            .await;
+        });
     }) as Box<dyn FnMut()>);
     let closure_ref = closure.as_ref().unchecked_ref();
 
