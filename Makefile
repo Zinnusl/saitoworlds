@@ -8,7 +8,7 @@ build:
 	mv ../saito-lite-rust/mods/saitoworlds/www ../saito-lite-rust/mods/saitoworlds/web
 
 copy_to_wsl:
-	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" --exclude "target" /mnt/d/Entwicklung/rust/saitoworlds/ .
+	rsync -rupE --exclude ".*" --exclude "node_modules" --exclude "LICENSE*" --exclude "*.json" --exclude "README*" --exclude "dist" --exclude "target" /mnt/i/Entwicklung/rust/saitoworlds/ .
 
 .PHONY: build
 .PHONY: copy_to_wsl
